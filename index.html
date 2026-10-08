@@ -5,366 +5,196 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>業務時間區塊規劃表</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #ffffff;
-      --bg-secondary: #f5f5f4;
-      --bg-tertiary: #f0efeb;
-      --text: #1a1a18;
-      --text-secondary: #6b6b68;
-      --text-tertiary: #9b9b97;
-      --border: rgba(0,0,0,0.12);
-      --border-hover: rgba(0,0,0,0.25);
-      --accent: #7F77DD;
-      --radius-md: 8px;
-      --radius-lg: 12px;
-      --row-h: 44px;
+      --bg: #ffffff; --bg-secondary: #f5f5f4; --bg-tertiary: #f0efeb;
+      --text: #1a1a18; --text-secondary: #6b6b68; --text-tertiary: #9b9b97;
+      --border: rgba(0,0,0,0.12); --border-hover: rgba(0,0,0,0.25);
+      --accent: #7F77DD; --radius-md: 8px; --radius-lg: 12px; --row-h: 44px;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #1c1c1a;
-        --bg-secondary: #252522;
-        --bg-tertiary: #2e2e2b;
-        --text: #f0efe9;
-        --text-secondary: #a0a09c;
-        --text-tertiary: #6b6b68;
-        --border: rgba(255,255,255,0.12);
-        --border-hover: rgba(255,255,255,0.25);
+        --bg: #1c1c1a; --bg-secondary: #252522; --bg-tertiary: #2e2e2b;
+        --text: #f0efe9; --text-secondary: #a0a09c; --text-tertiary: #6b6b68;
+        --border: rgba(255,255,255,0.12); --border-hover: rgba(255,255,255,0.25);
       }
     }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-tertiary); color: var(--text); min-height: 100vh; }
+    .container { max-width: 980px; margin: 0 auto; padding: 1.5rem 1rem; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg-tertiary);
-      color: var(--text);
-      min-height: 100vh;
-    }
-
-    .container {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 1.5rem 1rem;
-    }
-
-    .app-title {
-      font-size: 20px;
-      font-weight: 500;
-      color: var(--text);
-      margin-bottom: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    /* ── App header ── */
+    .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: 12px; }
+    .app-title { font-size: 20px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
     .app-title i { color: var(--accent); font-size: 22px; }
 
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
+    /* ── User selector ── */
+    .user-selector { position: relative; flex-shrink: 0; }
+    .user-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg); border: 0.5px solid var(--border-hover);
+      border-radius: 999px; padding: 5px 12px 5px 6px;
+      cursor: pointer; font-size: 13px; color: var(--text);
     }
-    .nav-btn {
-      background: var(--bg);
-      border: 0.5px solid var(--border-hover);
-      border-radius: var(--radius-md);
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 4px;
+    .user-pill:hover { background: var(--bg-secondary); }
+    .user-pill i.ti-chevron-down { font-size: 14px; color: var(--text-tertiary); }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #fff; flex-shrink: 0; }
+    .avatar-sm { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; color: #fff; flex-shrink: 0; }
+
+    .user-dropdown {
+      position: absolute; top: calc(100% + 6px); right: 0;
+      background: var(--bg); border: 0.5px solid var(--border-hover);
+      border-radius: var(--radius-lg); min-width: 200px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      z-index: 50; overflow: hidden;
+      display: none;
     }
+    .user-dropdown.open { display: block; }
+    .dropdown-section-label { font-size: 11px; color: var(--text-tertiary); padding: 8px 14px 4px; }
+    .user-option {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--text);
+    }
+    .user-option:hover { background: var(--bg-secondary); }
+    .user-option.active { background: rgba(127,119,221,0.08); }
+    .user-option.active .opt-name { font-weight: 500; color: var(--accent); }
+    .user-option .check { margin-left: auto; color: var(--accent); font-size: 14px; }
+    .dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+    .add-user-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; cursor: pointer; font-size: 13px; color: var(--accent);
+      font-weight: 500;
+    }
+    .add-user-btn:hover { background: var(--bg-secondary); }
+
+    /* Add user inline form */
+    .add-user-form { padding: 10px 14px 12px; }
+    .add-user-form input {
+      width: 100%; font-size: 13px; background: var(--bg); color: var(--text);
+      border: 0.5px solid var(--border-hover); border-radius: var(--radius-md);
+      padding: 6px 10px; margin-bottom: 8px;
+    }
+    .add-user-form input:focus { outline: 2px solid var(--accent); }
+    .form-btns { display: flex; gap: 6px; }
+    .btn-xs { flex: 1; font-size: 12px; padding: 5px 8px; border-radius: var(--radius-md); cursor: pointer; border: 0.5px solid var(--border-hover); background: var(--bg); color: var(--text); }
+    .btn-xs.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .nav-btn { background: var(--bg); border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 6px 10px; cursor: pointer; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 4px; }
     .nav-btn:hover { background: var(--bg-secondary); }
-    .title-txt {
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--text);
-      min-width: 150px;
-      text-align: center;
-    }
-    .view-toggle {
-      display: flex;
-      border: 0.5px solid var(--border-hover);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      margin-left: auto;
-      background: var(--bg);
-    }
-    .view-btn {
-      background: none;
-      border: none;
-      padding: 6px 18px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
-    .view-btn.active {
-      background: var(--bg-secondary);
-      color: var(--text);
-      font-weight: 500;
-    }
-    .add-btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-md);
-      padding: 7px 14px;
-      cursor: pointer;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
+    .title-txt { font-size: 15px; font-weight: 500; color: var(--text); min-width: 150px; text-align: center; }
+    .view-toggle { display: flex; border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); overflow: hidden; margin-left: auto; background: var(--bg); }
+    .view-btn { background: none; border: none; padding: 6px 18px; cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+    .view-btn.active { background: var(--bg-secondary); color: var(--text); font-weight: 500; }
+    .add-btn { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-md); padding: 7px 14px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 5px; }
     .add-btn:hover { opacity: 0.9; }
 
-    /* Month */
-    .month-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-    .day-head {
-      background: var(--bg-secondary);
-      padding: 8px 0;
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-    .day-cell {
-      background: var(--bg);
-      min-height: 82px;
-      padding: 5px;
-      cursor: pointer;
-    }
+    /* ── Month grid ── */
+    .month-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 1px; background: var(--border); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .day-head { background: var(--bg-secondary); padding: 8px 0; text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+    .day-cell { background: var(--bg); min-height: 90px; padding: 6px; cursor: pointer; }
     .day-cell:hover { background: var(--bg-secondary); }
-    .day-cell.today .day-num {
-      background: var(--accent);
-      color: #fff;
-      border-radius: 50%;
-      width: 22px;
-      height: 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .day-cell.today .day-num { background: var(--accent); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
     .day-cell.other-month .day-num { color: var(--text-tertiary); }
-    .day-num {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text);
-      width: 22px;
-      height: 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 3px;
-    }
-    .block-chip {
-      font-size: 10px;
-      padding: 2px 5px;
-      border-radius: 4px;
-      margin-bottom: 2px;
-      cursor: pointer;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-weight: 500;
-    }
+    .day-num { font-size: 12px; font-weight: 500; color: var(--text); width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; margin-bottom: 3px; }
+    .block-chip { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+    .more-chips { font-size: 10px; color: var(--text-tertiary); padding: 1px 0; }
 
-    /* Week */
-    .week-outer {
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      background: var(--bg);
-    }
-    .week-header {
-      display: grid;
-      grid-template-columns: 52px repeat(7, 1fr);
-      background: var(--bg-secondary);
-      border-bottom: 0.5px solid var(--border);
-    }
-    .week-day-head {
-      padding: 8px 4px;
-      text-align: center;
-      border-left: 0.5px solid var(--border);
-    }
+    /* ── Week grid ── */
+    .week-outer { border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg); }
+    .week-header { display: grid; grid-template-columns: 52px repeat(7,1fr); background: var(--bg-secondary); border-bottom: 0.5px solid var(--border); }
+    .week-day-head { padding: 8px 4px; text-align: center; border-left: 0.5px solid var(--border); }
     .week-day-head:first-child { border-left: none; }
     .wd-name { font-size: 11px; color: var(--text-secondary); }
-    .wd-num  { font-size: 18px; font-weight: 500; color: var(--text); }
+    .wd-num { font-size: 18px; font-weight: 500; color: var(--text); }
     .week-day-head.today .wd-num { color: var(--accent); }
-    .week-body {
-      display: grid;
-      grid-template-columns: 52px repeat(7, 1fr);
-      max-height: 600px;
-      overflow-y: auto;
-    }
-    .hour-label {
-      font-size: 11px;
-      color: var(--text-tertiary);
-      text-align: right;
-      padding: 0 8px 0 4px;
-      line-height: var(--row-h);
-      height: var(--row-h);
-      border-bottom: 0.5px solid var(--border);
-    }
-    .week-slot {
-      height: var(--row-h);
-      border-left: 0.5px solid var(--border);
-      border-bottom: 0.5px solid var(--border);
-      position: relative;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .week-slot:hover { background: rgba(127,119,221,0.07); }
-    .week-slot .add-hint {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      font-size: 18px;
-      color: var(--accent);
-      pointer-events: none;
-      transition: opacity 0.15s;
-    }
-    .week-slot:not(.has-block):hover .add-hint { opacity: 0.6; }
-    .week-block {
-      position: absolute;
-      left: 2px;
-      right: 2px;
-      top: 1px;
-      border-radius: 4px;
-      padding: 2px 6px;
-      font-size: 10px;
-      font-weight: 500;
-      z-index: 2;
-      cursor: pointer;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
+    .week-body { display: grid; grid-template-columns: 52px repeat(7,1fr); max-height: 600px; overflow-y: auto; }
+    .hour-label { font-size: 11px; color: var(--text-tertiary); text-align: right; padding: 0 8px 0 4px; line-height: var(--row-h); height: var(--row-h); border-bottom: 0.5px solid var(--border); }
+    .week-slot { height: var(--row-h); border-left: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); position: relative; cursor: pointer; transition: background .1s; }
+    .week-slot:hover { background: rgba(127,119,221,.07); }
+    .week-slot .add-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; font-size: 18px; color: var(--accent); pointer-events: none; transition: opacity .15s; }
+    .week-slot:not(.has-block):hover .add-hint { opacity: .6; }
+    .week-block { position: absolute; left: 2px; right: 2px; top: 1px; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 500; z-index: 2; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-    /* Legend */
+    /* ── Sync bar ── */
+    .sync-bar { display: flex; align-items: center; gap: 10px; margin-top: 1rem; padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 0.5px solid var(--border); }
+    .sync-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); flex: 1; }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+    .sync-dot.ok { background: #5DCAA5; }
+    .sync-dot.err { background: #F0997B; }
+    .sync-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .io-btn { background: var(--bg); border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 5px 12px; cursor: pointer; font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 5px; }
+    .io-btn:hover { background: var(--bg-tertiary); }
+
+    /* ── Legend ── */
     .legend-wrap { margin-top: 1rem; }
     .legend-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
-    .legend-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 6px;
-    }
-    @media (max-width: 600px) {
-      .legend-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--text);
-    }
+    .legend-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; }
+    @media (max-width: 600px) { .legend-grid { grid-template-columns: repeat(2,1fr); } }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text); }
     .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
-    /* Modal */
-    .modal-bg {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-    }
-    .modal {
-      background: var(--bg);
-      border-radius: var(--radius-lg);
-      border: 0.5px solid var(--border-hover);
-      padding: 1.25rem;
-      width: 340px;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
+    /* ── Modal ── */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border-hover); padding: 1.25rem; width: 340px; max-height: 90vh; overflow-y: auto; }
     .modal h3 { font-size: 15px; font-weight: 500; margin-bottom: 1rem; color: var(--text); }
     .form-row { margin-bottom: 12px; }
     .form-row label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-    .form-row input, .form-row select {
-      width: 100%;
-      font-size: 13px;
-      background: var(--bg);
-      color: var(--text);
-      border: 0.5px solid var(--border-hover);
-      border-radius: var(--radius-md);
-      padding: 7px 10px;
-    }
+    .form-row input, .form-row select { width: 100%; font-size: 13px; background: var(--bg); color: var(--text); border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 7px 10px; }
     .form-row input:focus, .form-row select:focus { outline: 2px solid var(--accent); }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .cat-btn {
-      font-size: 11px;
-      padding: 6px 8px;
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      border: 1.5px solid transparent;
-      font-weight: 500;
-      text-align: left;
-    }
-    .cat-btn.sel { border-color: rgba(0,0,0,0.4) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35); }
+    .cat-btn { font-size: 11px; padding: 6px 8px; border-radius: var(--radius-md); cursor: pointer; border: 1.5px solid transparent; font-weight: 500; text-align: left; }
+    .cat-btn.sel { border-color: rgba(0,0,0,.4)!important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
-    .btn-save {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-md);
-      padding: 7px 16px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    .btn-cancel {
-      background: none;
-      border: 0.5px solid var(--border-hover);
-      border-radius: var(--radius-md);
-      padding: 7px 14px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
-    .btn-del {
-      background: none;
-      border: 0.5px solid var(--border-hover);
-      border-radius: var(--radius-md);
-      padding: 7px 10px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-right: auto;
-    }
+    .btn-save { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-md); padding: 7px 16px; cursor: pointer; font-size: 13px; }
+    .btn-cancel { background: none; border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 7px 14px; cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+    .btn-del { background: none; border: 0.5px solid var(--border-hover); border-radius: var(--radius-md); padding: 7px 10px; cursor: pointer; font-size: 13px; color: var(--text-secondary); margin-right: auto; }
     .btn-del:hover { background: #fef2f2; color: #c0392b; }
-
-    .tip {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      text-align: center;
-      margin-top: 8px;
-    }
+    .tip { font-size: 12px; color: var(--text-tertiary); text-align: center; margin-top: 8px; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 13px; z-index: 300; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
 <div class="container">
-  <div class="app-title">
-    <i class="ti ti-layout-columns" aria-hidden="true"></i>
-    業務時間區塊規劃表
+
+  <!-- ── App header with user selector ── -->
+  <div class="app-header">
+    <div class="app-title">
+      <i class="ti ti-layout-columns" aria-hidden="true"></i>
+      業務時間區塊規劃表
+    </div>
+
+    <div class="user-selector" id="userSelector">
+      <button class="user-pill" id="userPill" onclick="toggleDropdown(event)">
+        <div class="avatar" id="headerAvatar" style="background:#7F77DD">我</div>
+        <span id="headerName">載入中</span>
+        <i class="ti ti-chevron-down" aria-hidden="true"></i>
+      </button>
+
+      <div class="user-dropdown" id="userDropdown">
+        <div class="dropdown-section-label">切換使用者</div>
+        <div id="userList"></div>
+        <div class="dropdown-divider"></div>
+        <div class="add-user-btn" id="showAddForm" onclick="showAddUserForm()">
+          <i class="ti ti-plus" aria-hidden="true"></i> 新增使用者
+        </div>
+        <div class="add-user-form" id="addUserForm" style="display:none">
+          <input id="newUserName" placeholder="輸入姓名" maxlength="20" />
+          <div class="form-btns">
+            <button class="btn-xs" onclick="cancelAddUser()">取消</button>
+            <button class="btn-xs primary" onclick="confirmAddUser()">新增</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- ── Toolbar ── -->
   <div class="toolbar">
     <button class="nav-btn" id="prevBtn"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
     <div class="title-txt" id="titleTxt"></div>
@@ -380,13 +210,31 @@
   <div id="calContainer"></div>
   <div class="tip" id="tipTxt">點擊空白時間格即可快速新增區塊</div>
 
+  <div class="sync-bar">
+    <div class="sync-status">
+      <div class="sync-dot loading" id="syncDot"></div>
+      <span id="syncText">連線中...</span>
+    </div>
+    <button class="io-btn" id="exportBtn"><i class="ti ti-download" aria-hidden="true"></i> 匯出</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+    <button class="io-btn" id="importBtn"><i class="ti ti-upload" aria-hidden="true"></i> 匯入</button>
+  </div>
+
   <div class="legend-wrap">
     <div class="legend-label">分類顏色</div>
     <div class="legend-grid" id="legendGrid"></div>
   </div>
 </div>
+<div class="toast" id="toastEl"></div>
 
 <script>
+/* ============================================================
+   ★ 設定區：填入你的 Supabase 資訊
+   ============================================================ */
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+/* ============================================================ */
+
 const CATS = [
   { key:'call',     label:'Call Call',    bg:'#F0997B', text:'#4A1B0C' },
   { key:'mkt',      label:'行銷',          bg:'#85B7EB', text:'#042C53' },
@@ -399,207 +247,395 @@ const CATS = [
   { key:'personal', label:'私人',          bg:'#ED93B1', text:'#4B1528' },
   { key:'soft',     label:'軟性活動',      bg:'#9FE1CB', text:'#085041' },
 ];
-const DURS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4];
+const DURS = [0.5,1,1.5,2,2.5,3,3.5,4];
 const START_H = 8, END_H = 24, ROW_H = 44;
+const AVATAR_COLORS = ['#7F77DD','#5DCAA5','#F0997B','#85B7EB','#EF9F27','#ED93B1','#378ADD','#888780'];
 
-let view = 'week';
-let cursor = new Date();
-let blocks = JSON.parse(localStorage.getItem('tb_sales_v1') || '[]');
+/* ── User management ── */
+let users = JSON.parse(localStorage.getItem('tb_users') || '[]');
+let currentUserId = localStorage.getItem('tb_current_user') || '';
+
+function saveUsers() { localStorage.setItem('tb_users', JSON.stringify(users)); }
+
+function getUser(id) { return users.find(u => u.id === id); }
+
+function currentUser() { return getUser(currentUserId) || users[0]; }
+
+function avatarColor(u) { return AVATAR_COLORS[u.colorIdx % AVATAR_COLORS.length]; }
+
+function initials(name) { return (name||'?').slice(0,1).toUpperCase(); }
+
+function ensureDefaultUser() {
+  if (users.length === 0) {
+    const name = prompt('歡迎！請輸入第一位使用者的姓名：') || '使用者 1';
+    const u = { id: 'u_' + Date.now(), name, colorIdx: 0 };
+    users.push(u); saveUsers();
+    currentUserId = u.id; localStorage.setItem('tb_current_user', u.id);
+  } else if (!currentUserId || !getUser(currentUserId)) {
+    currentUserId = users[0].id; localStorage.setItem('tb_current_user', currentUserId);
+  }
+}
+
+function renderUserPill() {
+  const u = currentUser();
+  if (!u) return;
+  document.getElementById('headerAvatar').style.background = avatarColor(u);
+  document.getElementById('headerAvatar').textContent = initials(u.name);
+  document.getElementById('headerName').textContent = u.name;
+}
+
+function renderUserList() {
+  document.getElementById('userList').innerHTML = users.map(u => `
+    <div class="user-option ${u.id === currentUserId ? 'active' : ''}" onclick="switchUser('${u.id}')">
+      <div class="avatar-sm" style="background:${avatarColor(u)}">${initials(u.name)}</div>
+      <span class="opt-name">${u.name}</span>
+      ${u.id === currentUserId ? '<i class="ti ti-check check" aria-hidden="true"></i>' : ''}
+    </div>`).join('');
+}
+
+function toggleDropdown(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('userDropdown');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open')) renderUserList();
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('userDropdown').classList.remove('open');
+  cancelAddUser();
+});
+document.getElementById('userDropdown').addEventListener('click', e => e.stopPropagation());
+
+function switchUser(id) {
+  currentUserId = id;
+  localStorage.setItem('tb_current_user', id);
+  document.getElementById('userDropdown').classList.remove('open');
+  renderUserPill();
+  blocks = JSON.parse(localStorage.getItem('tb_blocks_' + id) || '[]');
+  if (db) { loadFromCloud(); } else { render(); }
+  showToast('已切換至 ' + getUser(id).name);
+}
+
+function showAddUserForm() {
+  document.getElementById('showAddForm').style.display = 'none';
+  document.getElementById('addUserForm').style.display = 'block';
+  setTimeout(() => document.getElementById('newUserName').focus(), 50);
+}
+
+function cancelAddUser() {
+  document.getElementById('addUserForm').style.display = 'none';
+  document.getElementById('showAddForm').style.display = 'flex';
+  document.getElementById('newUserName').value = '';
+}
+
+function confirmAddUser() {
+  const name = document.getElementById('newUserName').value.trim();
+  if (!name) return;
+  const u = { id: 'u_' + Date.now(), name, colorIdx: users.length % AVATAR_COLORS.length };
+  users.push(u); saveUsers();
+  cancelAddUser();
+  renderUserList();
+  showToast('已新增使用者：' + name);
+}
+
+document.getElementById('newUserName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmAddUser();
+  if (e.key === 'Escape') cancelAddUser();
+});
+
+/* ── Data ── */
+let blocks = [];
 let editingId = null, clickedDate = null, clickedHour = null, selCat = CATS[0].key;
 const today = new Date(); today.setHours(0,0,0,0);
 
-function save() { localStorage.setItem('tb_sales_v1', JSON.stringify(blocks)); }
-function dateKey(d) { return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); }
-function catObj(key) { return CATS.find(c => c.key === key) || CATS[0]; }
-function fmtHour(h) { return Math.floor(h) + ':' + (h % 1 ? '30' : '00'); }
+function localKey() { return 'tb_blocks_' + (currentUser()?.id || 'default'); }
+function localLoad() { blocks = JSON.parse(localStorage.getItem(localKey()) || '[]'); }
+function localSave() { localStorage.setItem(localKey(), JSON.stringify(blocks)); }
+
+/* ── Supabase ── */
+let db = null;
+const isConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+
+function setSyncStatus(state, msg) {
+  document.getElementById('syncDot').className = 'sync-dot ' + state;
+  document.getElementById('syncText').textContent = msg;
+}
+
+async function initSupabase() {
+  if (!isConfigured) { setSyncStatus('err', '未設定 Supabase（使用本機儲存）'); return; }
+  try {
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    setSyncStatus('loading', '載入中...');
+    await loadFromCloud();
+  } catch(e) { setSyncStatus('err', '連線失敗，使用本機儲存'); }
+}
+
+async function loadFromCloud() {
+  const uid = currentUser()?.id;
+  if (!uid) return;
+  const { data, error } = await db.from('time_blocks').select('*').eq('user_id', uid).order('created_at');
+  if (error) { setSyncStatus('err', '讀取失敗'); return; }
+  blocks = data.map(r => ({ id:r.id, title:r.title||'', date:r.date, startH:r.start_h, dur:r.dur, cat:r.cat }));
+  localSave();
+  const now = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  setSyncStatus('ok', `雲端同步 ✓  ${blocks.length} 筆（${now}）`);
+  render();
+}
+
+async function cloudUpsert(block) {
+  if (!db) return;
+  const uid = currentUser()?.id;
+  const { error } = await db.from('time_blocks').upsert({
+    id:block.id, title:block.title, date:block.date,
+    start_h:block.startH, dur:block.dur, cat:block.cat, user_id:uid
+  });
+  if (error) setSyncStatus('err', '儲存失敗：' + error.message);
+}
+
+async function cloudDelete(id) {
+  if (!db) return;
+  const { error } = await db.from('time_blocks').delete().eq('id', id).eq('user_id', currentUser()?.id);
+  if (error) setSyncStatus('err', '刪除失敗');
+}
+
+/* ── Helpers ── */
+function showToast(msg) {
+  const t = document.getElementById('toastEl');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function dateKey(d) { return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function catObj(key) { return CATS.find(c=>c.key===key)||CATS[0]; }
+function fmtHour(h) { return Math.floor(h)+':'+(h%1?'30':'00'); }
+
+/* ── Render ── */
+let view = 'week';
+let cursor = new Date();
 
 function renderLegend() {
   document.getElementById('legendGrid').innerHTML = CATS.map(c =>
-    `<div class="legend-item"><div class="legend-dot" style="background:${c.bg}"></div>${c.label}</div>`
-  ).join('');
+    `<div class="legend-item"><div class="legend-dot" style="background:${c.bg}"></div>${c.label}</div>`).join('');
 }
 
 function renderMonthGrid() {
-  const y = cursor.getFullYear(), m = cursor.getMonth();
-  const startDow = (new Date(y,m,1).getDay()+6) % 7;
-  const dim = new Date(y,m+1,0).getDate();
-  const pd = new Date(y,m,0).getDate();
-  const days = ['一','二','三','四','五','六','日'];
-  let html = '<div class="month-grid">' + days.map(d => `<div class="day-head">${d}</div>`).join('');
-  let d = 1;
-  for (let i = 0; i < 42; i++) {
-    let date, cls = 'day-cell';
-    if (i < startDow) { date = new Date(y,m-1,pd-startDow+i+1); cls += ' other-month'; }
-    else if (d > dim) { date = new Date(y,m+1,d-dim); d++; cls += ' other-month'; }
-    else { date = new Date(y,m,d); d++; }
-    if (date.toDateString() === today.toDateString()) cls += ' today';
-    const dk = dateKey(date);
-    const db = blocks.filter(b => b.date === dk);
-    const chips = db.slice(0,3).map(b => {
-      const c = catObj(b.cat);
+  const y=cursor.getFullYear(), m=cursor.getMonth();
+  const startDow=(new Date(y,m,1).getDay()+6)%7;
+  const dim=new Date(y,m+1,0).getDate(), pd=new Date(y,m,0).getDate();
+  const wdays=['一','二','三','四','五','六','日'];
+  let html='<div class="month-grid">'+wdays.map(d=>`<div class="day-head">${d}</div>`).join('');
+  let d=1;
+  for(let i=0;i<42;i++){
+    let date,cls='day-cell';
+    if(i<startDow){date=new Date(y,m-1,pd-startDow+i+1);cls+=' other-month';}
+    else if(d>dim){date=new Date(y,m+1,d-dim);d++;cls+=' other-month';}
+    else{date=new Date(y,m,d);d++;}
+    if(date.toDateString()===today.toDateString())cls+=' today';
+    const dk=dateKey(date);
+    const db2=blocks.filter(b=>b.date===dk).sort((a,b)=>a.startH-b.startH);
+    const chips=db2.slice(0,4).map(b=>{
+      const c=catObj(b.cat);
       return `<div class="block-chip" style="background:${c.bg};color:${c.text}" data-id="${b.id}" onclick="editBlock('${b.id}',event)">${fmtHour(b.startH)} ${b.title||c.label}</div>`;
     }).join('');
-    const more = db.length > 3 ? `<div style="font-size:10px;color:var(--text-tertiary)">+${db.length-3}</div>` : '';
-    html += `<div class="${cls}" onclick="cellClick('${dk}')"><div class="day-num">${date.getDate()}</div>${chips}${more}</div>`;
+    const more=db2.length>4?`<div class="more-chips">＋${db2.length-4} 個</div>`:'';
+    html+=`<div class="${cls}" onclick="cellClick('${dk}')"><div class="day-num">${date.getDate()}</div>${chips}${more}</div>`;
   }
-  html += '</div>';
-  document.getElementById('calContainer').innerHTML = html;
-  document.getElementById('tipTxt').textContent = '點擊日期格子新增時間區塊';
+  html+='</div>';
+  document.getElementById('calContainer').innerHTML=html;
+  document.getElementById('tipTxt').textContent='點擊日期格子新增時間區塊（整月皆可填寫）';
 }
 
 function renderWeekGrid() {
-  const dow = (cursor.getDay()+6) % 7;
-  const monday = new Date(cursor); monday.setDate(cursor.getDate()-dow);
-  const days = [];
-  for (let i = 0; i < 7; i++) { const d = new Date(monday); d.setDate(monday.getDate()+i); days.push(d); }
-  const wdays = ['一','二','三','四','五','六','日'];
-  let html = '<div class="week-outer"><div class="week-header"><div class="week-day-head"></div>';
-  days.forEach((d, i) => {
-    const isTod = d.toDateString() === today.toDateString();
-    html += `<div class="week-day-head${isTod?' today':''}"><div class="wd-name">${wdays[i]}</div><div class="wd-num">${d.getDate()}</div></div>`;
+  const dow=(cursor.getDay()+6)%7;
+  const monday=new Date(cursor); monday.setDate(cursor.getDate()-dow);
+  const days=[];
+  for(let i=0;i<7;i++){const d=new Date(monday);d.setDate(monday.getDate()+i);days.push(d);}
+  const wdays=['一','二','三','四','五','六','日'];
+  let html='<div class="week-outer"><div class="week-header"><div class="week-day-head"></div>';
+  days.forEach((d,i)=>{
+    const isTod=d.toDateString()===today.toDateString();
+    html+=`<div class="week-day-head${isTod?' today':''}"><div class="wd-name">${wdays[i]}</div><div class="wd-num">${d.getDate()}</div></div>`;
   });
-  html += '</div><div class="week-body" id="weekBody">';
-  for (let h = START_H; h < END_H; h++) {
-    html += `<div class="hour-label">${h}:00</div>`;
-    days.forEach(d => {
-      const dk = dateKey(d);
-      const bl = blocks.filter(b => b.date === dk && b.startH === h);
-      const hasBl = bl.length > 0;
-      const inner = bl.map(b => {
-        const c = catObj(b.cat);
-        const px = Math.max(18, b.dur * ROW_H - 4);
+  html+='</div><div class="week-body" id="weekBody">';
+  for(let h=START_H;h<END_H;h++){
+    html+=`<div class="hour-label">${h}:00</div>`;
+    days.forEach(d=>{
+      const dk=dateKey(d);
+      const bl=blocks.filter(b=>b.date===dk&&b.startH===h);
+      const hasBl=bl.length>0;
+      const inner=bl.map(b=>{
+        const c=catObj(b.cat);
+        const px=Math.max(18,b.dur*ROW_H-4);
         return `<div class="week-block" style="background:${c.bg};color:${c.text};height:${px}px" data-id="${b.id}" onclick="editBlock('${b.id}',event)" title="${b.title||c.label}">${b.title||c.label}</div>`;
       }).join('');
-      html += `<div class="week-slot${hasBl?' has-block':''}" data-dk="${dk}" data-h="${h}">${inner}<span class="add-hint" aria-hidden="true">＋</span></div>`;
+      html+=`<div class="week-slot${hasBl?' has-block':''}" data-dk="${dk}" data-h="${h}">${inner}<span class="add-hint" aria-hidden="true">＋</span></div>`;
     });
   }
-  html += '</div></div>';
-  document.getElementById('calContainer').innerHTML = html;
-  document.getElementById('tipTxt').textContent = '點擊空白時間格即可快速新增區塊';
-  document.querySelectorAll('.week-slot').forEach(slot => {
-    slot.addEventListener('click', function(e) {
-      if (e.target.closest('[data-id]')) return;
-      clickedDate = this.getAttribute('data-dk');
-      clickedHour = parseInt(this.getAttribute('data-h'));
+  html+='</div></div>';
+  document.getElementById('calContainer').innerHTML=html;
+  document.getElementById('tipTxt').textContent='點擊空白時間格即可快速新增區塊';
+  document.querySelectorAll('.week-slot').forEach(slot=>{
+    slot.addEventListener('click',function(e){
+      if(e.target.closest('[data-id]'))return;
+      clickedDate=this.getAttribute('data-dk');
+      clickedHour=parseInt(this.getAttribute('data-h'));
       openModal(null);
     });
   });
-  setTimeout(() => { const wb = document.getElementById('weekBody'); if (wb) wb.scrollTop = 0; }, 50);
 }
 
 function render() {
-  const y = cursor.getFullYear(), m = cursor.getMonth();
-  if (view === 'month') {
-    document.getElementById('titleTxt').textContent = `${y} 年 ${m+1} 月`;
+  const y=cursor.getFullYear(), m=cursor.getMonth();
+  if(view==='month'){
+    document.getElementById('titleTxt').textContent=`${y} 年 ${m+1} 月`;
     renderMonthGrid();
   } else {
-    const dow = (cursor.getDay()+6) % 7;
-    const mon = new Date(cursor); mon.setDate(cursor.getDate()-dow);
-    const sun = new Date(mon); sun.setDate(mon.getDate()+6);
-    const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
-    document.getElementById('titleTxt').textContent = `${fmt(mon)} – ${fmt(sun)}`;
+    const dow=(cursor.getDay()+6)%7;
+    const mon=new Date(cursor); mon.setDate(cursor.getDate()-dow);
+    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
+    document.getElementById('titleTxt').textContent=`${fmt(mon)} – ${fmt(sun)}`;
     renderWeekGrid();
   }
   renderLegend();
 }
 
-function cellClick(dk) {
-  if (event && event.target.closest('[data-id]')) return;
-  clickedDate = dk; clickedHour = 9; openModal(null);
-}
-function editBlock(id, e) { if (e) e.stopPropagation(); openModal(id); }
+/* ── Modal ── */
+function cellClick(dk){ if(event&&event.target.closest('[data-id]'))return; clickedDate=dk; clickedHour=9; openModal(null); }
+function editBlock(id,e){ if(e)e.stopPropagation(); openModal(id); }
 
 function openModal(id) {
-  editingId = id;
-  const b = id ? blocks.find(x => x.id === id) : null;
-  selCat = b ? b.cat : CATS[0].key;
-  const dateRaw = b ? b.date : (clickedDate || dateKey(new Date()));
-  const [yy,mm,dd] = dateRaw.split('-');
-  const isoDate = `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
-  const allHours = [];
-  for (let h = START_H; h < END_H; h++) { allHours.push(h); allHours.push(h+0.5); }
-  const startH = b ? b.startH : (clickedHour ?? 9);
-  const hoursOpts = allHours.map(h => `<option value="${h}"${startH===h?' selected':''}>${fmtHour(h)}</option>`).join('');
-  const durOpts = DURS.map(v => `<option value="${v}"${(b?b.dur:1)===v?' selected':''}>${v}h</option>`).join('');
-  const catHtml = CATS.map(c =>
-    `<button type="button" class="cat-btn${selCat===c.key?' sel':''}" style="background:${c.bg};color:${c.text}" onclick="pickCat('${c.key}')">${c.label}</button>`
-  ).join('');
-  const html = `<div class="modal-bg" id="modalBg">
+  editingId=id;
+  const b=id?blocks.find(x=>x.id===id):null;
+  selCat=b?b.cat:CATS[0].key;
+  const dateRaw=b?b.date:(clickedDate||dateKey(new Date()));
+  const [yy,mm,dd]=dateRaw.split('-');
+  const isoDate=`${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  const allH=[]; for(let h=START_H;h<END_H;h++){allH.push(h);allH.push(h+0.5);}
+  const startH=b?b.startH:(clickedHour??9);
+  const hoursOpts=allH.map(h=>`<option value="${h}"${startH===h?' selected':''}>${fmtHour(h)}</option>`).join('');
+  const durOpts=DURS.map(v=>`<option value="${v}"${(b?b.dur:1)===v?' selected':''}>${v}h</option>`).join('');
+  const catHtml=CATS.map(c=>`<button type="button" class="cat-btn${selCat===c.key?' sel':''}" style="background:${c.bg};color:${c.text}" onclick="pickCat('${c.key}')">${c.label}</button>`).join('');
+  const html=`<div class="modal-bg" id="modalBg">
     <div class="modal">
-      <h3>${b ? '編輯區塊' : '新增時間區塊'}</h3>
+      <h3>${b?'編輯區塊':'新增時間區塊'}</h3>
       <div class="form-row"><label>活動內容</label><input id="mTitle" value="${b?b.title:''}" placeholder="自訂內容"></div>
       <div class="form-row"><label>日期</label><input type="date" id="mDate" value="${isoDate}"></div>
       <div class="form-row grid-2">
         <div><label>開始時間</label><select id="mStart">${hoursOpts}</select></div>
         <div><label>時長</label><select id="mDur">${durOpts}</select></div>
       </div>
-      <div class="form-row"><label>分類</label><div class="cat-grid" id="catGrid">${catHtml}</div></div>
+      <div class="form-row"><label>分類</label><div class="cat-grid">${catHtml}</div></div>
       <div class="modal-actions">
-        ${b ? `<button type="button" class="btn-del" onclick="deleteBlock('${b.id}')"><i class="ti ti-trash"></i></button>` : ''}
+        ${b?`<button type="button" class="btn-del" onclick="deleteBlock('${b.id}')"><i class="ti ti-trash"></i></button>`:''}
         <button type="button" class="btn-cancel" onclick="closeModal()">取消</button>
-        <button type="button" class="btn-save" onclick="saveBlock()">儲存</button>
+        <button type="button" class="btn-save" id="saveBtn" onclick="saveBlock()">儲存</button>
       </div>
     </div>
   </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-  document.getElementById('modalBg').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.body.insertAdjacentHTML('beforeend',html);
+  document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal();});
   document.getElementById('mTitle').focus();
 }
 
-function closeModal() { const m = document.getElementById('modalBg'); if (m) m.remove(); }
-
-function pickCat(key) {
-  selCat = key;
-  document.querySelectorAll('.cat-btn').forEach(btn => {
-    const isSel = btn.getAttribute('onclick').includes(`'${key}'`);
-    btn.classList.toggle('sel', isSel);
+function closeModal(){ const m=document.getElementById('modalBg'); if(m)m.remove(); }
+function pickCat(key){
+  selCat=key;
+  document.querySelectorAll('.cat-btn').forEach(btn=>{
+    btn.classList.toggle('sel',btn.getAttribute('onclick').includes(`'${key}'`));
   });
 }
 
-function saveBlock() {
-  const title = document.getElementById('mTitle').value.trim();
-  const dateRaw = document.getElementById('mDate').value;
-  const [yy,mm,dd] = dateRaw.split('-');
-  const dk = `${parseInt(yy)}-${parseInt(mm)}-${parseInt(dd)}`;
-  const startH = parseFloat(document.getElementById('mStart').value);
-  const dur = parseFloat(document.getElementById('mDur').value);
-  if (editingId) {
-    const i = blocks.findIndex(b => b.id === editingId);
-    if (i > -1) blocks[i] = { ...blocks[i], title, date:dk, startH, dur, cat:selCat };
+async function saveBlock() {
+  const title=document.getElementById('mTitle').value.trim();
+  const dateRaw=document.getElementById('mDate').value;
+  const [yy,mm,dd]=dateRaw.split('-');
+  const dk=`${parseInt(yy)}-${parseInt(mm)}-${parseInt(dd)}`;
+  const startH=parseFloat(document.getElementById('mStart').value);
+  const dur=parseFloat(document.getElementById('mDur').value);
+  const btn=document.getElementById('saveBtn');
+  if(btn){btn.disabled=true;btn.textContent='儲存中...';}
+  let block;
+  if(editingId){
+    const i=blocks.findIndex(b=>b.id===editingId);
+    block={...blocks[i],title,date:dk,startH,dur,cat:selCat};
+    blocks[i]=block;
   } else {
-    blocks.push({ id: Date.now()+'', title, date:dk, startH, dur, cat:selCat });
+    block={id:Date.now()+'',title,date:dk,startH,dur,cat:selCat};
+    blocks.push(block);
   }
-  save(); closeModal(); render();
+  localSave();
+  if(db){ await cloudUpsert(block); const now=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); setSyncStatus('ok',`雲端同步 ✓  ${blocks.length} 筆（${now}）`); }
+  closeModal(); render(); showToast('✓ 已儲存');
 }
 
-function deleteBlock(id) { blocks = blocks.filter(b => b.id !== id); save(); closeModal(); render(); }
+async function deleteBlock(id) {
+  blocks=blocks.filter(b=>b.id!==id); localSave();
+  if(db){ await cloudDelete(id); const now=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); setSyncStatus('ok',`雲端同步 ✓  ${blocks.length} 筆（${now}）`); }
+  closeModal(); render(); showToast('已刪除');
+}
 
-document.getElementById('prevBtn').onclick = () => {
-  if (view==='month') { cursor.setMonth(cursor.getMonth()-1); cursor.setDate(1); }
+/* ── Export / Import ── */
+document.getElementById('exportBtn').onclick=()=>{
+  const u=currentUser();
+  const data=JSON.stringify({version:2,user:u?.name,exportedAt:new Date().toISOString(),blocks},null,2);
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
+  const d=new Date();
+  a.download=`行程備份_${u?.name||'unknown'}_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  a.click(); showToast('✓ 已匯出備份');
+};
+document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=async function(){
+  const file=this.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      const imported=parsed.blocks||parsed;
+      if(!Array.isArray(imported))throw new Error();
+      if(confirm(`找到 ${imported.length} 筆紀錄，匯入給「${currentUser()?.name}」，確定？`)){
+        blocks=imported; localSave();
+        if(db){ setSyncStatus('loading','上傳中...'); for(const b of blocks){ await cloudUpsert(b); } setSyncStatus('ok',`雲端同步 ✓  ${blocks.length} 筆`); }
+        render(); showToast(`✓ 已匯入 ${imported.length} 筆`);
+      }
+    }catch{ showToast('✗ 檔案格式有誤'); }
+    this.value='';
+  };
+  reader.readAsText(file);
+};
+
+/* ── Nav ── */
+document.getElementById('prevBtn').onclick=()=>{
+  if(view==='month'){cursor.setMonth(cursor.getMonth()-1);cursor.setDate(1);}
   else cursor.setDate(cursor.getDate()-7);
   render();
 };
-document.getElementById('nextBtn').onclick = () => {
-  if (view==='month') { cursor.setMonth(cursor.getMonth()+1); cursor.setDate(1); }
+document.getElementById('nextBtn').onclick=()=>{
+  if(view==='month'){cursor.setMonth(cursor.getMonth()+1);cursor.setDate(1);}
   else cursor.setDate(cursor.getDate()+7);
   render();
 };
-document.getElementById('todayBtn').onclick = () => { cursor = new Date(); render(); };
-document.getElementById('monthViewBtn').onclick = () => {
-  view='month'; cursor.setDate(1);
+document.getElementById('todayBtn').onclick=()=>{cursor=new Date();render();};
+document.getElementById('monthViewBtn').onclick=()=>{
+  view='month';cursor.setDate(1);
   document.getElementById('monthViewBtn').classList.add('active');
   document.getElementById('weekViewBtn').classList.remove('active');
   render();
 };
-document.getElementById('weekViewBtn').onclick = () => {
+document.getElementById('weekViewBtn').onclick=()=>{
   view='week';
   document.getElementById('weekViewBtn').classList.add('active');
   document.getElementById('monthViewBtn').classList.remove('active');
   render();
 };
-document.getElementById('addBtn').onclick = () => { clickedDate = dateKey(new Date()); clickedHour = 9; openModal(null); };
+document.getElementById('addBtn').onclick=()=>{ clickedDate=dateKey(new Date()); clickedHour=9; openModal(null); };
 
+/* ── Init ── */
+ensureDefaultUser();
+renderUserPill();
+localLoad();
 render();
+initSupabase();
 </script>
 </body>
 </html>
