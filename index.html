@@ -374,7 +374,15 @@ async function loadFromCloud() {
   const uid = currentUser()?.id;
   if (!uid) return;
   const { data, error } = await db.from('time_blocks').select('*').eq('user_id', uid).order('created_at');
-  if (error) { setSyncStatus('err', '讀取失敗'); return; }
+  if (error) { console.error(error); setSyncStatus('err', '讀取失敗：' + error.message); showToast('✗ 雲端讀取失敗，請看下方狀態列'); render(); return; }
+  // 雲端是空的但本機有資料 → 不覆蓋本機，改為把本機資料補傳上雲端
+  if (data.length === 0 && blocks.length > 0) {
+    setSyncStatus('loading', '上傳本機資料中...');
+    let ok = true;
+    for (const b of blocks) { if (!(await cloudUpsert(b))) { ok = false; break; } }
+    if (ok) setSyncStatus('ok', `雲端同步 ✓  ${blocks.length} 筆（已補傳本機資料）`);
+    render(); return;
+  }
   blocks = data.map(r => ({ id:r.id, title:r.title||'', date:r.date, startH:r.start_h, dur:r.dur, cat:r.cat }));
   localSave();
   const now = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
@@ -383,13 +391,14 @@ async function loadFromCloud() {
 }
 
 async function cloudUpsert(block) {
-  if (!db) return;
+  if (!db) return true;
   const uid = currentUser()?.id;
   const { error } = await db.from('time_blocks').upsert({
     id:block.id, title:block.title, date:block.date,
     start_h:block.startH, dur:block.dur, cat:block.cat, user_id:uid
   });
-  if (error) setSyncStatus('err', '儲存失敗：' + error.message);
+  if (error) { console.error(error); setSyncStatus('err', '雲端儲存失敗：' + error.message); return false; }
+  return true;
 }
 
 async function cloudDelete(id) {
@@ -460,12 +469,13 @@ function renderWeekGrid() {
     html+=`<div class="hour-label">${h}:00</div>`;
     days.forEach(d=>{
       const dk=dateKey(d);
-      const bl=blocks.filter(b=>b.date===dk&&b.startH===h);
+      const bl=blocks.filter(b=>b.date===dk&&Math.floor(Number(b.startH))===h);
       const hasBl=bl.length>0;
       const inner=bl.map(b=>{
         const c=catObj(b.cat);
         const px=Math.max(18,b.dur*ROW_H-4);
-        return `<div class="week-block" style="background:${c.bg};color:${c.text};height:${px}px" data-id="${b.id}" onclick="editBlock('${b.id}',event)" title="${b.title||c.label}">${b.title||c.label}</div>`;
+        const top=1+(Number(b.startH)%1)*ROW_H;
+        return `<div class="week-block" style="background:${c.bg};color:${c.text};height:${px}px;top:${top}px" data-id="${b.id}" onclick="editBlock('${b.id}',event)" title="${b.title||c.label}">${b.title||c.label}</div>`;
       }).join('');
       html+=`<div class="week-slot${hasBl?' has-block':''}" data-dk="${dk}" data-h="${h}">${inner}<span class="add-hint" aria-hidden="true">＋</span></div>`;
     });
@@ -564,8 +574,13 @@ async function saveBlock() {
     blocks.push(block);
   }
   localSave();
-  if(db){ await cloudUpsert(block); const now=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); setSyncStatus('ok',`雲端同步 ✓  ${blocks.length} 筆（${now}）`); }
-  closeModal(); render(); showToast('✓ 已儲存');
+  let cloudOk = true;
+  if(db){
+    cloudOk = await cloudUpsert(block);
+    if(cloudOk){ const now=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}); setSyncStatus('ok',`雲端同步 ✓  ${blocks.length} 筆（${now}）`); }
+  }
+  closeModal(); render();
+  showToast(cloudOk ? '✓ 已儲存' : '⚠ 已存本機，但雲端儲存失敗');
 }
 
 async function deleteBlock(id) {
